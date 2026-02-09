@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cat Image Checker</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
+        #result { margin-top: 20px; font-weight: bold; }
+        #preview { max-width: 300px; max-height: 300px; margin-top: 10px; }
+        .loader { display: none; border: 5px solid #f3f3f3; border-top: 5px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 2s linear infinite; margin: 20px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <h1><span style="color: #3498db;">🐈</span> Cat Image Checker</h1>
+    <p>Upload an image to check if it contains a cat:</p>
+    
+    <input type="file" id="imageUpload" accept="image/*">
+    <div id="previewContainer">
+        <img id="preview" style="display: none;">
+    </div>
+    <div class="loader" id="loader"></div>
+    <div id="result"></div>
+
+    <script>
+        document.getElementById('imageUpload').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = document.getElementById('preview');
+                img.src = event.target.result;
+                img.style.display = 'block';
+                
+                // Show loader
+                document.getElementById('loader').style.display = 'block';
+                document.getElementById('result').textContent = '';
+                
+                // Send to backend
+                uploadImage(file);
+            };
+            reader.readAsDataURL(file);
+        });
+
+        function uploadImage(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('loader').style.display = 'none';
+                const resultDiv = document.getElementById('result');
+                
+                if (data.error) {
+                    resultDiv.textContent = 'Error: ' + data.error;
+                    resultDiv.style.color = 'red';
+                    return;
+                }
+                
+                resultDiv.textContent = data.is_cat 
+                    ? "✅ This is a cat!" 
+                    : "❌ This doesn't appear to be a cat.";
+                resultDiv.style.color = data.is_cat ? 'green' : 'red';
+                
+                // Show top predictions
+                const predictions = document.createElement('div');
+                predictions.innerHTML = '<h3>Top Predictions:</h3>' + 
+                    data.predictions.map(p => 
+                        `${p.label} (${(p.probability * 100).toFixed(2)}%)`
+                    ).join('<br>');
+                resultDiv.appendChild(predictions);
+            })
+            .catch(error => {
+                document.getElementById('loader').style.display = 'none';
+                document.getElementById('result').textContent = 'Error: ' + error;
+                document.getElementById('result').style.color = 'red';
+            });
+        }
+    </script>
+</body>
+</html>
